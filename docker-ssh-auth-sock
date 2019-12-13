@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -e -u -o pipefail
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
+first_attempt=1
+while true; do
+    if [ -z "$first_attempt" ]; then
+        sleep 10
+    fi
+    first_attempt=
+
+    if [ ! -S "$SSH_AUTH_SOCK" ]; then
+        echo "error: \$SSH_AUTH_SOCK is not a socket: ${SSH_AUTH_SOCK}" >&2
+        continue
+    fi
+
+    if ! hash socat 2>/dev/null; then
+        echo "error: socat is not installed (run \"brew install socat\" to fix this)" >&2
+        continue
+    fi
+
+    while ! docker system info >/dev/null 2>&1; do
+        echo "error: Docker is not running or not working" >&2
+        continue
+    done
+
+    TTY_FILES=(
+        ~/Library/Containers/com.docker.docker/Data/vms/0/tty
+        ~/Library/Containers/com.docker.docker/Data/com.docker.driver.amd64-linux/tty
+    )
+    TTY_FILE=
+
+    for tty_file in "${TTY_FILES[@]}"; do
+        if [ -c "$tty_file" ]; then
+            TTY_FILE="$tty_file"
+            break
+        fi
+    done
+
+    if [ -z "$TTY_FILE" ]; then
+        echo "error: Docker TTY not found"
+        continue
+    fi
+
+    COMMAND="mkdir -p /ssh-auth-sock-hack && mount -o bind /ssh-auth-sock-hack $(dirname $SSH_AUTH_SOCK) && rmdir $SSH_AUTH_SOCK"
+    echo ctr -n services.linuxkit tasks exec --exec-id 'ssh-$(hostname)-$$' '$(ctr -n services.linuxkit tasks ls -q | grep docker)' sh -c \"$COMMAND\" > "$TTY_FILE" || true
+    sleep 1.25
+    socat "EXEC:\"docker run -i --rm -v $(dirname $SSH_AUTH_SOCK):$(dirname $SSH_AUTH_SOCK) alpine/socat UNIX-LISTEN:$SSH_AUTH_SOCK,reuseaddr,fork -\"" "EXEC:\"socat - UNIX:${SSH_AUTH_SOCK}\"" || true
+done
