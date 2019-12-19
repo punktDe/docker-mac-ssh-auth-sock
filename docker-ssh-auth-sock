@@ -45,5 +45,5 @@ while true; do
     COMMAND="mkdir -p /ssh-auth-sock-hack && mount -o bind /ssh-auth-sock-hack $(dirname $SSH_AUTH_SOCK) && rmdir $SSH_AUTH_SOCK"
     echo ctr -n services.linuxkit tasks exec --exec-id 'ssh-$(hostname)-$$' '$(ctr -n services.linuxkit tasks ls -q | grep docker)' sh -c \"$COMMAND\" > "$TTY_FILE" || true
     sleep 1.25
-    socat "EXEC:\"docker run -i --rm -v $(dirname $SSH_AUTH_SOCK):$(dirname $SSH_AUTH_SOCK) alpine/socat UNIX-LISTEN:$SSH_AUTH_SOCK,reuseaddr,fork -\"" "EXEC:\"socat - UNIX:${SSH_AUTH_SOCK}\"" || true
+    socat "EXEC:\"docker run -i --rm -v $(dirname $SSH_AUTH_SOCK):$(dirname $SSH_AUTH_SOCK) alpine/socat UNIX-LISTEN:$SSH_AUTH_SOCK,reuseaddr,fork,mode=0777 -\"" "EXEC:\"socat - UNIX:${SSH_AUTH_SOCK}\"" || true
 done
