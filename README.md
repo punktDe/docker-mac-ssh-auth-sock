@@ -12,6 +12,13 @@ brew services start punktde/public/docker-ssh-auth-sock
 
 The service will restart on boot.
 
+## Uninstall
+
+```bash
+brew services stop punktde/public/docker-ssh-auth-sock
+brew remove punktde/public/docker-ssh-auth-sock
+```
+
 ## Usage
 
 ### docker run
